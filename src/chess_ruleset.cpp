@@ -40,14 +40,14 @@ namespace chess {
 		new generic_piece_rule{{piece_type::BISHOP}, {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}}},
 		new generic_piece_rule{{piece_type::QUEEN}, {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}, {-1, 0}, {0, -1}, {1, 0}, {0, 1}}},
 		new generic_piece_rule{{piece_type::KING}, {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}, {-1, 0}, {0, -1}, {1, 0}, {0, 1}}, false, 1},*/
-		new generic_piece_rule1<piece_type::ROCK>(),
-		new generic_piece_rule1<piece_type::KNIGHT>(),
-		new generic_piece_rule1<piece_type::BISHOP>(),
-		new generic_piece_rule1<piece_type::QUEEN>(),
-		new generic_piece_rule1<piece_type::KING>(),
+		new generic_piece_rule<piece_type::ROCK>(),
+		new generic_piece_rule<piece_type::KNIGHT>(),
+		new generic_piece_rule<piece_type::BISHOP>(),
+		new generic_piece_rule<piece_type::QUEEN>(),
+		new generic_piece_rule<piece_type::KING>(),
 		//new generic_rule{piece_type::KING, &target_not_attacked_cb},
 		//new pawn_piece_rule{},
-		new generic_piece_rule1<piece_type::PAWN>(),
+		new generic_piece_rule<piece_type::PAWN>(),
 		new generic_rule{ALL_PIECE_TYPES, &toggle_to_move_cb},
 	}};
 
@@ -127,93 +127,6 @@ namespace chess {
 		return output;
 	}
 
-
-/*	std::vector<position> get_possible_move_targets(board& b, const position& pos){
-		return get_possible_move_targets<b.at(pos).get_type()>(b, pos);
-	}
-
-	std::vector<position> get_attacked_fields(board& b, const position& pos){
-		return get_attacked_fields<b.at(pos).get_type()>(b, pos);
-	}
-*/
-	void piece_rule::rule_callback(ruleset& rules, board& b, const move& m){
-		if(!util::vector_contains(get_possible_moves(b, m.source), m.target))
-			throw invalid_move_error(m, "Generic move check failed: that piece can't move like this.");
-	}
-
-
-	generic_piece_rule::generic_piece_rule(const std::set<piece_type>& applies_to_types, const std::vector<position>& relative_moves,
-										   unsigned int times, bool jump):
-		piece_rule{applies_to_types}, relative_moves{relative_moves}, times{times}, jump{jump}
-	{}
-
-
-	std::vector<position> generic_piece_rule::get_possible_moves(board& b, const position& pos){
-		std::vector<position> output;
-		piece& piece = b.at(pos);
-
-		for(position possible_move : relative_moves) {
-			position possible_target = pos + possible_move;
-			for(unsigned int factor = 1; (factor <= times || times == std::numeric_limits<unsigned int>::infinity()) && b.is_in_bounds(possible_target); ++factor){ //TODO
-
-				if(!b.is_empty(possible_target) && b.at(possible_target).get_color() == piece.get_color())
-					break;
-
-				if(jump){
-					output.push_back(possible_target);
-					continue;
-				}
-				if(is_path_free(b, pos, possible_target, possible_move) && /*(options.move_is_attack ||*/ b.is_empty(possible_target)/*)*/){
-					output.push_back(possible_target);
-				} else
-					break;
-
-				possible_target += possible_move;
-			}
-		}
-
-		return output;
-	}
-
-	std::vector<position> generic_piece_rule::get_attacked_fields(board& b, const position& pos) {
-		return get_possible_moves(b, pos);
-	}
-
-	pawn_piece_rule::pawn_piece_rule(): piece_rule{{piece_type::PAWN}} {}
-
-	std::vector<position> pawn_piece_rule::get_possible_moves(board& b, const position& pos) {
-		std::vector<position> output;
-		piece p = b.at(pos);
-		int y_movement = p.get_color() == piece_color::WHITE ? 1 : -1;
-		int baseline = p.get_color() == piece_color::WHITE ? 2 : 7;
-
-		position possible_target = pos + position{0, y_movement};
-		if (b.is_empty(possible_target))
-			output.push_back(possible_target);
-		if (pos.y == baseline){
-			possible_target = pos + position{0, 2*y_movement};
-			if (b.is_empty(possible_target))
-				output.push_back(possible_target);
-		}
-
-		for (position attack : get_attacked_fields(b, pos))
-			if (!b.is_empty(attack) && b.at(attack).get_color() != p.get_color())
-				output.push_back(attack);
-
-		return output;
-	}
-	std::vector<position> pawn_piece_rule::get_attacked_fields(board& b, const position& pos) {
-		std::vector<position> output;
-		piece_color color = b.at(pos).get_color();
-		int y_movement = color == piece_color::WHITE ? 1 : -1;
-		position attack_left = pos + position{-1, y_movement};
-		position attack_right = pos + position{1, y_movement};
-		if (b.is_in_bounds(attack_left))
-			output.push_back(attack_left);
-		if (b.is_in_bounds(attack_right))
-			output.push_back(attack_right);
-		return output;
-	}
 
 
 	void non_empty_source_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){

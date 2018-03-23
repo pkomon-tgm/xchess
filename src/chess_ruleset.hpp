@@ -97,44 +97,13 @@ namespace chess {
 
 	//SPECIAL RULES
 
-	struct piece_rule : public rule {
-		using rule::rule;
-
-		virtual std::vector<position> get_possible_moves(board& b, const position& pos) = 0;
-		virtual std::vector<position> get_attacked_fields(board& b, const position& pos) = 0;
-
-		virtual void rule_callback(ruleset& rules, board& b, const move& m);
-	};
-
-	struct generic_piece_rule : public piece_rule {
-		std::vector<position> relative_moves;
-		unsigned int times;
-		bool jump;
-
-		generic_piece_rule(const std::set<piece_type>& applies_to_types, const std::vector<position>& relative_moves,
-						   unsigned int times = std::numeric_limits<int>::infinity(), bool jump = false);
-
-		virtual std::vector<position> get_possible_moves(board& b, const position& pos) override;
-		virtual std::vector<position> get_attacked_fields(board& b, const position& pos) override;
-
-	};
-
 	template <piece_type T>
-	struct generic_piece_rule1 : public rule {
-		generic_piece_rule1(): rule{{T}} {}
+	struct generic_piece_rule : public rule {
+		generic_piece_rule(): rule{{T}} {}
 		virtual void rule_callback(ruleset& rules, board& b, const move& m){
 			if(!util::vector_contains(get_possible_move_targets<T>(b, m.source), m.target))
 				throw invalid_move_error(m, "Generic move check failed: that piece can't move like this.");
 		}
-	};
-
-
-
-	struct pawn_piece_rule : public piece_rule {
-		pawn_piece_rule();
-
-		virtual std::vector<position> get_possible_moves(board& b, const position& pos) override;
-		virtual std::vector<position> get_attacked_fields(board& b, const position& pos) override;
 	};
 
 
