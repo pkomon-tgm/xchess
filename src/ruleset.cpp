@@ -36,12 +36,13 @@ namespace chess {
 
 	void ruleset::apply(board& b, const move& m) {
 		bool consumed = false;
-		for(std::size_t i = 0; i < rules.size() && consumed; ++i){
+		for(std::size_t i = 0; i < rules.size() && !consumed; ++i){
 			//check rule application in ruleset or rule?
 			//if(r.applies_to(m.p->get_type()))
 			//	r.cb(b, m);
 			consumed |= rules[i]->apply(*this, b, m);
 		}
+		after_move(b, m);
 	}
 
 	void ruleset::init(board& b){}
@@ -49,5 +50,6 @@ namespace chess {
 		b.reset_pieces();
 		init(b);
 	}
+	void ruleset::after_move(board& b, const move& m){}
 
 } /* namespace chess */

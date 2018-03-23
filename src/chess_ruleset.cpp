@@ -35,20 +35,13 @@ namespace chess {
 		new generic_rule{ALL_PIECE_TYPES, &check_rule_cb},
 		new generic_rule{ALL_PIECE_TYPES, &empty_target_rule_cb},
 		new generic_rule{ALL_PIECE_TYPES, &move_in_bounds_cb},
-		/*new generic_piece_rule{{piece_type::ROCK}, {{1, 0}, {0, 1}, {-1, 0}, {0, -1}}},
-		new generic_piece_rule{{piece_type::KNIGHT}, {{1, 2}, {-1, 2}, {2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, -2}, {-1, -2}}, true, 1},
-		new generic_piece_rule{{piece_type::BISHOP}, {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}}},
-		new generic_piece_rule{{piece_type::QUEEN}, {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}, {-1, 0}, {0, -1}, {1, 0}, {0, 1}}},
-		new generic_piece_rule{{piece_type::KING}, {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}, {-1, 0}, {0, -1}, {1, 0}, {0, 1}}, false, 1},*/
 		new generic_piece_rule<piece_type::ROCK>(),
 		new generic_piece_rule<piece_type::KNIGHT>(),
 		new generic_piece_rule<piece_type::BISHOP>(),
 		new generic_piece_rule<piece_type::QUEEN>(),
 		new generic_piece_rule<piece_type::KING>(),
-		//new generic_rule{piece_type::KING, &target_not_attacked_cb},
-		//new pawn_piece_rule{},
 		new generic_piece_rule<piece_type::PAWN>(),
-		new generic_rule{ALL_PIECE_TYPES, &toggle_to_move_cb},
+		//new generic_rule{ALL_PIECE_TYPES, &toggle_to_move_cb},
 	}};
 
 	void chess_ruleset::init(board& b){
@@ -75,6 +68,10 @@ namespace chess {
 		b.set_piece({piece_type::BISHOP, piece_color::BLACK}, {'F', 8});
 		b.set_piece({piece_type::QUEEN, piece_color::BLACK}, {'D', 8});
 		b.set_piece({piece_type::KING, piece_color::BLACK}, {'E', 8});
+	}
+
+	void chess_ruleset::after_move(board& b, const move& m){
+		toggle_to_move();
 	}
 
 	piece_color chess_ruleset::get_to_move(){return to_move;}

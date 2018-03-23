@@ -61,6 +61,7 @@ namespace chess {
 
 		virtual void init(board& b);
 		virtual void reset(board& b);
+		virtual void after_move(board& b, const move& m);
 	};
 
 } /* namespace chess */

@@ -32,6 +32,7 @@ namespace chess {
 		chess_ruleset(const std::vector<rule*>& rules);
 
 		virtual void init(board& b) override;
+		virtual void after_move(board& b, const move& m) override;
 
 		piece_color get_to_move();
 		void toggle_to_move();
@@ -103,7 +104,9 @@ namespace chess {
 		virtual bool rule_callback(ruleset& rules, board& b, const move& m){
 			if(!util::vector_contains(get_possible_move_targets<T>(b, m.source), m.target))
 				throw invalid_move_error(m, "Generic move check failed: that piece can't move like this.");
-			return false;
+			b.set_piece(b.at(m.source), m.target);
+			b.remove_piece(m.source);
+			return true;
 		}
 	};
 
