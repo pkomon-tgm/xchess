@@ -15,15 +15,16 @@ namespace chess {
 	rule::rule(const std::set<piece_type>& applies_to_types): applies_to_types{applies_to_types} {}
 
 	bool rule::applies_to(piece_type type) const {return applies_to_types.find(type) != applies_to_types.end();}
-	void rule::apply(ruleset& rules, board& b, const move& m) {
+	bool rule::apply(ruleset& rules, board& b, const move& m) {
 		if(applies_to(b.at(m.source).get_type()))
-			rule_callback(rules, b, m);
+			return rule_callback(rules, b, m);
+		return false;
 	}
 
 
 	generic_rule::generic_rule(const std::set<piece_type>& applies_to_types, const generic_rule_cb_function& cb): rule{applies_to_types}, cb{cb} {}
-	void generic_rule::rule_callback(ruleset& rules, board& b, const move& m) {
-		cb(rules, b, m, b.at(m.source));
+	bool generic_rule::rule_callback(ruleset& rules, board& b, const move& m) {
+		return cb(rules, b, m, b.at(m.source));
 	}
 
 
@@ -34,11 +35,12 @@ namespace chess {
 	}
 
 	void ruleset::apply(board& b, const move& m) {
-		for(auto& r : rules){
+		bool consumed = false;
+		for(std::size_t i = 0; i < rules.size() && consumed; ++i){
 			//check rule application in ruleset or rule?
 			//if(r.applies_to(m.p->get_type()))
 			//	r.cb(b, m);
-			r->apply(*this, b, m);
+			consumed |= rules[i]->apply(*this, b, m);
 		}
 	}
 

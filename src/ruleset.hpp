@@ -30,22 +30,22 @@ namespace chess {
 		rule(const std::set<piece_type>& applies_to_types);
 		virtual ~rule() = default;
 
-		void apply(ruleset& rules, board& b, const move& m);
+		bool apply(ruleset& rules, board& b, const move& m);
 
-		virtual void rule_callback(ruleset& rules, board& b, const move& m) = 0;
+		virtual bool rule_callback(ruleset& rules, board& b, const move& m) = 0;
 
 	private:
 		bool applies_to(piece_type type) const;
 	};
 
-	using generic_rule_cb_function = std::function<void(ruleset& rules, board& b, const move& m, const piece& p)>;
+	using generic_rule_cb_function = std::function<bool(ruleset& rules, board& b, const move& m, const piece& p)>;
 
 	class generic_rule : public rule {
 		generic_rule_cb_function cb;
 
 	public:
 		generic_rule(const std::set<piece_type>& applies_to_types, const generic_rule_cb_function& cb);
-		virtual void rule_callback(ruleset& rules, board& b, const move& m) override;
+		virtual bool rule_callback(ruleset& rules, board& b, const move& m) override;
 	};
 
 

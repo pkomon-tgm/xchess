@@ -129,46 +129,52 @@ namespace chess {
 
 
 
-	void non_empty_source_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool non_empty_source_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
 		if(b.is_empty(m.source))
 			throw invalid_move_error(m, "lol"); //TODO
+		return false;
 	}
 
-	void right_to_move_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool right_to_move_cb(ruleset& rules, board& b, const move& m, const piece& p){
 		if(b.at(m.source).get_color() != static_cast<chess_ruleset&>(rules).get_to_move())
 			throw invalid_move_error(m, "tried to move piece of wrong player");
+		return false;
 	}
 
 
-	void different_source_target_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool different_source_target_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
 		if(m.source == m.target)
 			throw invalid_move_error(m, "Source and target are the same!");
+		return false;
 	}
 
-	void discovered_attack_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
-
+	bool discovered_attack_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
+		return false;
 	}
 
-	void check_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
-
+	bool check_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
+		return false;
 	}
 
-	void empty_target_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool empty_target_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
 		if(!b.is_empty(m.target) && b.at(m.target).get_color() == p.get_color())
 			throw invalid_move_error(m, "Can't move on fields occupied with by piece");
+		return false;
 	}
 
-	void move_in_bounds_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool move_in_bounds_cb(ruleset& rules, board& b, const move& m, const piece& p){
 		if(!b.is_in_bounds(m.source) || !b.is_in_bounds(m.target))
 			throw invalid_move_error(m, "Source and/or target position of move not within board's bounds");
+		return false;
 	}
 
-	void toggle_to_move_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool toggle_to_move_cb(ruleset& rules, board& b, const move& m, const piece& p){
 		static_cast<chess_ruleset&>(rules).toggle_to_move();
+		return false;
 	}
 
-	void target_not_attacked_cb(ruleset& rules, board& b, const move& m, const piece& p){
-
+	bool target_not_attacked_cb(ruleset& rules, board& b, const move& m, const piece& p){
+		return false;
 	}
 
 	bool is_path_free(board& b, const position& source, const position& target, const position& offset){
@@ -180,7 +186,7 @@ namespace chess {
 	}
 
 	bool is_field_attacked_by(ruleset& rules, board& b, const position& pos, piece_color color){
-		return true;
+		return true;//TODO
 	}
 
 
