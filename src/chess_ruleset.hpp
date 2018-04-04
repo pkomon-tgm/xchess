@@ -135,9 +135,9 @@ namespace chess {
 				throw invalid_move_error(m, "Generic move check failed: that piece can't move like this.");
 
 			if(b.is_empty(m.target))
-				static_cast<chess_ruleset&>(rules).next = new action(m);
+				rules.next = new action(m);
 			else
-				static_cast<chess_ruleset&>(rules).next = new hit_action(m, b.at(m.target));
+				rules.next = new hit_action(m, b.at(m.target));
 
 			return false;
 		}
