@@ -150,34 +150,14 @@ namespace chess {
 
 	//FUNCTIONS FOR GENERIC RULES
 
-	bool non_empty_source_rule_cb(ruleset& rules, board& b, const move& m);
 	bool right_to_move_cb(ruleset& rules, board& b, const move& m);
 	bool different_source_target_rule_cb(ruleset& rules, board& b, const move& m);
-
-	/*move must not result in check to own king*/
-	bool discovered_attack_rule_cb(ruleset& rules, board& b, const move& m);
-
-	/*when own king is in check, move must do one of the following:
-	 * - capture checking piece
-	 * - move king to a field where it is not in check
-	 * - blocking the check
-	 */
-	bool check_rule_cb(ruleset& rules, board& b, const move& m);
-
-	/*move piece only to field if there isn't already a piece
-	  of the same color or the enemy king*/
 	bool empty_target_rule_cb(ruleset& rules, board& b, const move& m);
 
 	/*check is source and target positions of move are actually within board bounds*/
 	bool move_in_bounds_cb(ruleset& rules, board& b, const move& m);
 
-	/*generic move rule, only pawn is not supported by this*/
-	bool generic_move_rule_cb(ruleset& rules, board& b, const move& m);
-
-	/*toggles to_move flag*/
 	bool king_in_check_cb(ruleset& rules, board& b, const move& m);
-
-	bool target_not_attacked_cb(ruleset& rules, board& b, const move& m);
 
 }
 

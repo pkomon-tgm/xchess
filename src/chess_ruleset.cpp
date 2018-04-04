@@ -44,15 +44,12 @@ namespace chess {
 
 
 	const std::set<piece_type> ALL_PIECE_TYPES{piece_type::PAWN, piece_type::ROCK, piece_type::KNIGHT,
-										 piece_type::BISHOP, piece_type::QUEEN, piece_type::KING};
+											   piece_type::BISHOP, piece_type::QUEEN, piece_type::KING};
 
 	chess_ruleset chess_rules{
 		{
-			new generic_rule{ALL_PIECE_TYPES, &non_empty_source_rule_cb},
 			new generic_rule{ALL_PIECE_TYPES, &right_to_move_cb},
 			new generic_rule{ALL_PIECE_TYPES, &different_source_target_rule_cb},
-			new generic_rule{ALL_PIECE_TYPES, &discovered_attack_rule_cb},
-			new generic_rule{ALL_PIECE_TYPES, &check_rule_cb},
 			new generic_rule{ALL_PIECE_TYPES, &empty_target_rule_cb},
 			new generic_rule{ALL_PIECE_TYPES, &move_in_bounds_cb},
 			new generic_piece_rule<piece_type::ROCK>(),
@@ -184,18 +181,11 @@ namespace chess {
 		return false;
 	}
 
-	bool non_empty_source_rule_cb(ruleset& rules, board& b, const move& m){
-		if(b.is_empty(m.source))
-			throw invalid_move_error(m, "lol"); //TODO
-		return false;
-	}
-
 	bool right_to_move_cb(ruleset& rules, board& b, const move& m){
 		if(b.at(m.source).get_color() != static_cast<chess_ruleset&>(rules).get_to_move())
 			throw invalid_move_error(m, "tried to move piece of wrong player");
 		return false;
 	}
-
 
 	bool different_source_target_rule_cb(ruleset& rules, board& b, const move& m){
 		if(m.source == m.target)
@@ -203,17 +193,9 @@ namespace chess {
 		return false;
 	}
 
-	bool discovered_attack_rule_cb(ruleset& rules, board& b, const move& m){
-		return false;
-	}
-
-	bool check_rule_cb(ruleset& rules, board& b, const move& m){
-		return false;
-	}
-
 	bool empty_target_rule_cb(ruleset& rules, board& b, const move& m){
 		if(!b.is_empty(m.target) && b.at(m.target).get_color() == b.at(m.source).get_color())
-			throw invalid_move_error(m, "Can't move on fields occupied with by piece");
+			throw invalid_move_error(m, "Can't move on fields occupied by own piece");
 		return false;
 	}
 
@@ -234,10 +216,6 @@ namespace chess {
 				}
 			}
 		}
-		return false;
-	}
-
-	bool target_not_attacked_cb(ruleset& rules, board& b, const move& m){
 		return false;
 	}
 
