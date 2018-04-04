@@ -38,6 +38,8 @@ namespace chess {
 		bool is_empty(const position& pos) const;
 		bool is_in_bounds(const position& pos) const;
 
+		std::unordered_map<position, piece>& get_fields();
+
 		//for debugging purposes only
 		std::string to_string();
 	};

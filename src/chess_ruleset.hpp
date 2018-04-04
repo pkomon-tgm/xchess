@@ -21,21 +21,47 @@
 
 namespace chess {
 
-	struct piece_rule;
+	//struct piece_rule;
+
+	struct action : public abstract_action {
+		move m;
+
+		action(const move& m);
+		virtual ~action() = default;
+
+		virtual void execute(board& b);
+		virtual void undo(board& b);
+
+	};
+
+	struct hit_action : public action {
+		piece hit;
+
+		hit_action(const move& m, const piece& h);
+
+		virtual void undo(board& b);
+
+	};
+
+//	struct compound_action : public action {
+//
+//
+//		virtual void execute(board& b);
+//		virtual void undo(board& b);
+//	};
 
 	class chess_ruleset : public ruleset {
 		piece_color to_move = piece_color::WHITE;
-		std::vector<piece_rule*> piece_rules;
 
 	public:
 		using ruleset::ruleset;
-		chess_ruleset(const std::vector<rule*>& rules);
 
 		virtual void init(board& b) override;
 		virtual void after_move(board& b, const move& m) override;
 
 		piece_color get_to_move();
 		void toggle_to_move();
+
 	};
 
 	extern chess_ruleset chess_rules;
@@ -76,7 +102,7 @@ namespace chess {
 					output.push_back(possible_target);
 					continue;
 				}
-				if(is_path_free(b, pos, possible_target, possible_move) && b.is_empty(possible_target)){
+				if(is_path_free(b, pos, possible_target, possible_move) && (b.is_empty(possible_target) || b.at(possible_target).get_color() != piece.get_color())){
 					output.push_back(possible_target);
 				} else
 					break;
@@ -95,6 +121,9 @@ namespace chess {
 	template<> std::vector<position> get_attacked_fields<PAWN>(board& b, const position& pos);
 	template<> std::vector<position> get_possible_move_targets<PAWN>(board& b, const position& pos);
 
+	extern std::map<piece_type, std::vector<position> (*)(board& b, const position& pos)> get_attacked_fields_cb_map;
+
+	std::vector<position> get_attacked_fields(board& b, const position& pos);
 
 	//SPECIAL RULES
 
@@ -104,43 +133,51 @@ namespace chess {
 		virtual bool rule_callback(ruleset& rules, board& b, const move& m){
 			if(!util::vector_contains(get_possible_move_targets<T>(b, m.source), m.target))
 				throw invalid_move_error(m, "Generic move check failed: that piece can't move like this.");
-			b.set_piece(b.at(m.source), m.target);
-			b.remove_piece(m.source);
-			return true;
+
+			if(b.is_empty(m.target))
+				static_cast<chess_ruleset&>(rules).next = new action(m);
+			else
+				static_cast<chess_ruleset&>(rules).next = new hit_action(m, b.at(m.target));
+
+			return false;
 		}
 	};
 
+	struct castling_rule : public rule {;
+		castling_rule();
+		virtual bool rule_callback(ruleset& rules, board& b, const move& m);
+	};
 
 	//FUNCTIONS FOR GENERIC RULES
 
-	bool non_empty_source_rule_cb(ruleset& rules, board& b, const move& m, const piece& p);
-	bool right_to_move_cb(ruleset& rules, board& b, const move& m, const piece& p);
-	bool different_source_target_rule_cb(ruleset& rules, board& b, const move& m, const piece& p);
+	bool non_empty_source_rule_cb(ruleset& rules, board& b, const move& m);
+	bool right_to_move_cb(ruleset& rules, board& b, const move& m);
+	bool different_source_target_rule_cb(ruleset& rules, board& b, const move& m);
 
 	/*move must not result in check to own king*/
-	bool discovered_attack_rule_cb(ruleset& rules, board& b, const move& m, const piece& p);
+	bool discovered_attack_rule_cb(ruleset& rules, board& b, const move& m);
 
 	/*when own king is in check, move must do one of the following:
 	 * - capture checking piece
 	 * - move king to a field where it is not in check
 	 * - blocking the check
 	 */
-	bool check_rule_cb(ruleset& rules, board& b, const move& m, const piece& p);
+	bool check_rule_cb(ruleset& rules, board& b, const move& m);
 
 	/*move piece only to field if there isn't already a piece
 	  of the same color or the enemy king*/
-	bool empty_target_rule_cb(ruleset& rules, board& b, const move& m, const piece& p);
+	bool empty_target_rule_cb(ruleset& rules, board& b, const move& m);
 
 	/*check is source and target positions of move are actually within board bounds*/
-	bool move_in_bounds_cb(ruleset& rules, board& b, const move& m, const piece& p);
+	bool move_in_bounds_cb(ruleset& rules, board& b, const move& m);
 
 	/*generic move rule, only pawn is not supported by this*/
-	bool generic_move_rule_cb(ruleset& rules, board& b, const move& m, const piece& p);
+	bool generic_move_rule_cb(ruleset& rules, board& b, const move& m);
 
 	/*toggles to_move flag*/
-	bool toggle_to_move_cb(ruleset& rules, board& b, const move& m, const piece& p);
+	bool king_in_check_cb(ruleset& rules, board& b, const move& m);
 
-	bool target_not_attacked_cb(ruleset& rules, board& b, const move& m, const piece& p);
+	bool target_not_attacked_cb(ruleset& rules, board& b, const move& m);
 
 }
 

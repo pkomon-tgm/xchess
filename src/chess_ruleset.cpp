@@ -19,30 +19,54 @@
 #include "move.hpp"
 #include "position.hpp"
 
+#include <iostream>
+
 namespace chess {
+
+	action::action(const move& m): m{m} {}
+
+	void action::execute(board& b){
+		b.set_piece(b.at(m.source), m.target);
+		b.remove_piece(m.source);
+	}
+
+	void action::undo(board& b){
+		b.set_piece(b.at(m.target), m.source);
+		b.remove_piece(m.target);
+	}
+
+	hit_action::hit_action(const move& m, const piece& hit): action{m}, hit{hit} {}
+
+	void hit_action::undo(board& b){
+		b.set_piece(b.at(m.target), m.source);
+		b.set_piece(hit, m.target);
+	}
+
 
 	const std::set<piece_type> ALL_PIECE_TYPES{piece_type::PAWN, piece_type::ROCK, piece_type::KNIGHT,
 										 piece_type::BISHOP, piece_type::QUEEN, piece_type::KING};
 
-	chess_ruleset::chess_ruleset(const std::vector<rule*>& rules): ruleset{rules} {}
-
-
-	chess_ruleset chess_rules{{
-		new generic_rule{ALL_PIECE_TYPES, &non_empty_source_rule_cb},
-		new generic_rule{ALL_PIECE_TYPES, &right_to_move_cb},
-		new generic_rule{ALL_PIECE_TYPES, &different_source_target_rule_cb},
-		new generic_rule{ALL_PIECE_TYPES, &discovered_attack_rule_cb},
-		new generic_rule{ALL_PIECE_TYPES, &check_rule_cb},
-		new generic_rule{ALL_PIECE_TYPES, &empty_target_rule_cb},
-		new generic_rule{ALL_PIECE_TYPES, &move_in_bounds_cb},
-		new generic_piece_rule<piece_type::ROCK>(),
-		new generic_piece_rule<piece_type::KNIGHT>(),
-		new generic_piece_rule<piece_type::BISHOP>(),
-		new generic_piece_rule<piece_type::QUEEN>(),
-		new generic_piece_rule<piece_type::KING>(),
-		new generic_piece_rule<piece_type::PAWN>(),
-		//new generic_rule{ALL_PIECE_TYPES, &toggle_to_move_cb},
-	}};
+	chess_ruleset chess_rules{
+		{
+			new generic_rule{ALL_PIECE_TYPES, &non_empty_source_rule_cb},
+			new generic_rule{ALL_PIECE_TYPES, &right_to_move_cb},
+			new generic_rule{ALL_PIECE_TYPES, &different_source_target_rule_cb},
+			new generic_rule{ALL_PIECE_TYPES, &discovered_attack_rule_cb},
+			new generic_rule{ALL_PIECE_TYPES, &check_rule_cb},
+			new generic_rule{ALL_PIECE_TYPES, &empty_target_rule_cb},
+			new generic_rule{ALL_PIECE_TYPES, &move_in_bounds_cb},
+			new generic_piece_rule<piece_type::ROCK>(),
+			new generic_piece_rule<piece_type::KNIGHT>(),
+			new generic_piece_rule<piece_type::BISHOP>(),
+			new generic_piece_rule<piece_type::QUEEN>(),
+			new castling_rule(),
+			new generic_piece_rule<piece_type::KING>(),
+			new generic_piece_rule<piece_type::PAWN>(),
+		},
+		{
+			new generic_rule{ALL_PIECE_TYPES, &king_in_check_cb}
+		}
+	};
 
 	void chess_ruleset::init(board& b){
 		for(auto i = 1; i <= 8; ++i)
@@ -89,6 +113,31 @@ namespace chess {
 		{piece_type::KING, {{{1, 1}, {-1, 1}, {1, -1}, {-1, -1}, {-1, 0}, {0, -1}, {1, 0}, {0, 1}}, 1, false}}
 	};
 
+	//TODO find smth more elegant
+	std::map<piece_type, std::vector<position> (*)(board& b, const position& pos)> get_attacked_fields_cb_map{
+		{PAWN, &get_attacked_fields<PAWN>},
+		{BISHOP, &get_attacked_fields<BISHOP>},
+		{ROCK, &get_attacked_fields<ROCK>},
+		{KNIGHT, &get_attacked_fields<KNIGHT>},
+		{QUEEN, &get_attacked_fields<QUEEN>},
+		{KING, &get_attacked_fields<KING>}
+	};
+
+	std::vector<position> get_attacked_fields(board& b, const position& pos){
+		return get_attacked_fields_cb_map[b.at(pos).get_type()](b, pos);
+	}
+
+
+	bool is_field_attacked_by(board& b, const position& pos, piece_color color){
+		for(auto& pos_piece: b.get_fields()){
+			if(pos_piece.second.get_color() == color && util::vector_contains(get_attacked_fields(b, pos_piece.first), pos)){
+				return true;
+			}
+		}
+		return false;
+	}
+
+
 	template<> std::vector<position> get_attacked_fields<PAWN>(board& b, const position& pos){
 		std::vector<position> output;
 		piece_color color = b.at(pos).get_color();
@@ -117,60 +166,78 @@ namespace chess {
 				output.push_back(possible_target);
 		}
 
-		for (position attack : get_attacked_fields<PAWN>(b, pos))
+		for (position attack : get_attacked_fields(b, pos))
 			if (!b.is_empty(attack) && b.at(attack).get_color() != p.get_color())
 				output.push_back(attack);
 
 		return output;
 	}
 
+	castling_rule::castling_rule(): rule{{piece_type::KING}} {}
+	bool castling_rule::rule_callback(ruleset& rules, board& b, const move& m){
+		//todo
+		//check if fields in between king and tower are empty
+		//check move history if king has been moved
+		//check move history if tower has been moved
+		//check if fields in between king's path are in check
+		//move tower and king
+		return false;
+	}
 
-
-	bool non_empty_source_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool non_empty_source_rule_cb(ruleset& rules, board& b, const move& m){
 		if(b.is_empty(m.source))
 			throw invalid_move_error(m, "lol"); //TODO
 		return false;
 	}
 
-	bool right_to_move_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool right_to_move_cb(ruleset& rules, board& b, const move& m){
 		if(b.at(m.source).get_color() != static_cast<chess_ruleset&>(rules).get_to_move())
 			throw invalid_move_error(m, "tried to move piece of wrong player");
 		return false;
 	}
 
 
-	bool different_source_target_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool different_source_target_rule_cb(ruleset& rules, board& b, const move& m){
 		if(m.source == m.target)
 			throw invalid_move_error(m, "Source and target are the same!");
 		return false;
 	}
 
-	bool discovered_attack_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool discovered_attack_rule_cb(ruleset& rules, board& b, const move& m){
 		return false;
 	}
 
-	bool check_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool check_rule_cb(ruleset& rules, board& b, const move& m){
 		return false;
 	}
 
-	bool empty_target_rule_cb(ruleset& rules, board& b, const move& m, const piece& p){
-		if(!b.is_empty(m.target) && b.at(m.target).get_color() == p.get_color())
+	bool empty_target_rule_cb(ruleset& rules, board& b, const move& m){
+		if(!b.is_empty(m.target) && b.at(m.target).get_color() == b.at(m.source).get_color())
 			throw invalid_move_error(m, "Can't move on fields occupied with by piece");
 		return false;
 	}
 
-	bool move_in_bounds_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool move_in_bounds_cb(ruleset& rules, board& b, const move& m){
 		if(!b.is_in_bounds(m.source) || !b.is_in_bounds(m.target))
 			throw invalid_move_error(m, "Source and/or target position of move not within board's bounds");
 		return false;
 	}
 
-	bool toggle_to_move_cb(ruleset& rules, board& b, const move& m, const piece& p){
-		static_cast<chess_ruleset&>(rules).toggle_to_move();
+	//TODO other flow - 2 sets of rules, one before move and one after
+	//this removes the need to redo a correct move, since the board is just left, if the after-move-rules didn't throw an exception
+	bool king_in_check_cb(ruleset& rules, board& b, const move& m){
+		piece_color own_color = b.at(m.target).get_color();
+		for(auto& pos_piece : b.get_fields()){
+			if (pos_piece.second.get_color() == own_color && pos_piece.second.get_type() == KING){
+				if(is_field_attacked_by(b, pos_piece.first, !own_color)){
+					throw invalid_move_error(m, "own king would be in check at the end of this move");
+				}
+			}
+		}
 		return false;
 	}
 
-	bool target_not_attacked_cb(ruleset& rules, board& b, const move& m, const piece& p){
+	bool target_not_attacked_cb(ruleset& rules, board& b, const move& m){
 		return false;
 	}
 
@@ -181,10 +248,5 @@ namespace chess {
 		}
 		return true;
 	}
-
-	bool is_field_attacked_by(ruleset& rules, board& b, const position& pos, piece_color color){
-		return true;//TODO
-	}
-
 
 }

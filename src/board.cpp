@@ -38,6 +38,7 @@ namespace chess {
 
 	bool board::is_empty(const position& pos) const {return fields.find(pos) == fields.end();}
 	bool board::is_in_bounds(const position& pos) const {return pos.x > 0 && pos.x <= size && pos.y > 0 && pos.y <= size;};
+	std::unordered_map<position, piece>& board::get_fields(){return fields;}
 
 
 	std::string board::to_string(){
