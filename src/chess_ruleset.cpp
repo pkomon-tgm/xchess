@@ -200,17 +200,20 @@ namespace chess {
 
 	castling_rule::castling_rule(): rule{{piece_type::KING}} {}
 	bool castling_rule::rule_callback(ruleset& rules, board& b, const move& m){ //maybe prettify
-		int baseline = b.at(m.source).get_color() == piece_color::WHITE ? 1 : 8;
+		piece_color my_color = b.at(m.source).get_color();
+		int baseline = my_color == piece_color::WHITE ? 1 : 8;
 
 		if(m.source.y == baseline && m.target.y == baseline
 				&& m.source.x == position::to_index('E') && std::abs(m.source.x - m.target.x) == 2){
 			int dir = m.source.x - m.target.x == 2 ? -1 : 1;
 			position original_tower_pos = position{dir == -1 ? 1 : 8, baseline};
-			if(!has_moved(rules, original_tower_pos) && !has_moved(rules, m.source)){
+			if(!b.is_empty(original_tower_pos) && b.at(original_tower_pos).get_color() == my_color
+			 && b.at(original_tower_pos).get_type() == ROCK
+			 && !has_moved(rules, original_tower_pos) && !has_moved(rules, m.source)){
 				position offset = {dir, 0};
 				if(is_path_free(b, m.source, original_tower_pos, offset)){
 					for(position current = m.source; current != m.target; current+=offset){
-						if(is_field_attacked_by(b, current, !b.at(m.source).get_color()))
+						if(is_field_attacked_by(b, current, !my_color))
 							return false;
 					}
 					rules.next = new castling_action{m, {original_tower_pos, m.target-offset}};
