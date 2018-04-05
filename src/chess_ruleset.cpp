@@ -53,13 +53,22 @@ namespace chess {
 	hit_action::hit_action(const move& m, const piece& hit): move_action{m}, hit{hit}, hit_at{m.target} {}
 	hit_action::hit_action(const move& m, const piece& hit, const position& hit_at): move_action{m}, hit{hit}, hit_at{hit_at} {}
 
-
 	void hit_action::undo(board& b){
 		b.set_piece(b.at(m.target), m.source);
 		b.remove_piece(m.target);
 		b.set_piece(hit, hit_at);
 	}
 
+	castling_action::castling_action(const move& king_move, const move& tower_move): king_action{king_move}, tower_action{tower_move} {}
+	void castling_action::execute(board& b){
+		king_action.execute(b);
+		tower_action.execute(b);
+	}
+
+	void castling_action::undo(board& b){
+		tower_action.undo(b);
+		king_action.undo(b);
+	}
 
 	const std::set<piece_type> ALL_PIECE_TYPES{piece_type::PAWN, piece_type::ROCK, piece_type::KNIGHT,
 											   piece_type::BISHOP, piece_type::QUEEN, piece_type::KING};
@@ -190,13 +199,26 @@ namespace chess {
 	}
 
 	castling_rule::castling_rule(): rule{{piece_type::KING}} {}
-	bool castling_rule::rule_callback(ruleset& rules, board& b, const move& m){
-		//todo
-		//check if fields in between king and tower are empty
-		//check move history if king has been moved
-		//check move history if tower has been moved
-		//check if fields in between king's path are in check
-		//move tower and king
+	bool castling_rule::rule_callback(ruleset& rules, board& b, const move& m){ //maybe prettify
+		int baseline = b.at(m.source).get_color() == piece_color::WHITE ? 1 : 8;
+
+		if(m.source.y == baseline && m.target.y == baseline
+				&& m.source.x == position::to_index('E') && std::abs(m.source.x - m.target.x) == 2){
+			int dir = m.source.x - m.target.x == 2 ? -1 : 1;
+			position original_tower_pos = position{dir == -1 ? 1 : 8, baseline};
+			if(!has_moved(rules, original_tower_pos) && !has_moved(rules, m.source)){
+				position offset = {dir, 0};
+				if(is_path_free(b, m.source, original_tower_pos, offset)){
+					for(position current = m.source; current != m.target; current+=offset){
+						if(is_field_attacked_by(b, current, !b.at(m.source).get_color()))
+							return false;
+					}
+					rules.next = new castling_action{m, {original_tower_pos, m.target-offset}};
+					return true;
+				}
+			}
+		}
+
 		return false;
 	}
 
@@ -257,7 +279,7 @@ namespace chess {
 
 	bool has_moved(ruleset& rules, const position& pos){
 		for(auto& action : rules.get_actions()){
-
+			//maybe rather add smth. like std::vector<position> involves(); to action...?
 			move_action* actual_move_action;
 
 			if(const promotion_action* pr_action = dynamic_cast<const promotion_action*>(action.get())){

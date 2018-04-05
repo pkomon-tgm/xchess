@@ -22,7 +22,7 @@ namespace chess {
 		virtual ~move() = default;
 	};
 
-	class invalid_move_error : std::exception { //todo add way to provide more informatio
+	class invalid_move_error : public std::exception { //todo add way to provide more informatio
 		move m;
 		std::string msg;
 	public:

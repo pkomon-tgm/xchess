@@ -50,6 +50,15 @@ namespace chess {
 		virtual void undo(board& b);
 	};
 
+	struct castling_action : public abstract_action {
+		move_action king_action, tower_action;
+
+		castling_action(const move& king_move, const move& tower_move);
+
+		virtual void execute(board& b);
+		virtual void undo(board& b);
+	};
+
 	struct hit_action : public move_action {
 		piece hit;
 		position hit_at;

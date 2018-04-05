@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 		std::cout << std::endl;
 		try {
 			g.make_move({src, dest});
-		} catch(chess::invalid_move_error& e) {
+		} catch(const chess::invalid_move_error& e) {
 			std::cout << "move is not rule-compliant:" << std::endl;
 			std::cout << e.what() << std::endl;
 		}

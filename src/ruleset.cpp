@@ -55,12 +55,14 @@ namespace chess {
 			try {
 				for(std::size_t i = 0; i < rules_after_move.size() && !consumed; ++i)
 					consumed |= rules_after_move[i]->apply(*this, b, m, b.at(m.target).get_type());
-			} catch (std::exception& e) {
+			} catch (const invalid_move_error& e) {
 				next->undo(b);
+				delete next;
+				next = nullptr;
 				throw e;
 			}
-			next = nullptr;
 			actions.emplace_back(next);
+			next = nullptr;
 			after_move(b, m);
 		} else
 			throw invalid_move_error(m, "no rule set next action, should never arise!");
