@@ -23,23 +23,41 @@
 
 namespace chess {
 
-	action::action(const move& m): m{m} {}
+	promotion_move::promotion_move(const position& source, const position& target, piece_type promote_to):
+			move{source, target}, promote_to{promote_to} {}
 
-	void action::execute(board& b){
+	move_action::move_action(const move& m): m{m} {}
+
+	void move_action::execute(board& b){
 		b.set_piece(b.at(m.source), m.target);
 		b.remove_piece(m.source);
 	}
 
-	void action::undo(board& b){
+	void move_action::undo(board& b){
 		b.set_piece(b.at(m.target), m.source);
 		b.remove_piece(m.target);
 	}
 
-	hit_action::hit_action(const move& m, const piece& hit): action{m}, hit{hit} {}
+	promotion_action::promotion_action(const promotion_move& m): move_action{m}, promote_to{m.promote_to} {}
+
+	void promotion_action::execute(board& b){
+		move_action::execute(b);
+		b.set_piece({promote_to, b.at(m.target).get_color()}, m.target);
+	}
+
+	void promotion_action::undo(board& b){
+		b.set_piece({PAWN, b.at(m.target).get_color()}, m.target);
+		move_action::undo(b);
+	}
+
+	hit_action::hit_action(const move& m, const piece& hit): move_action{m}, hit{hit}, hit_at{m.target} {}
+	hit_action::hit_action(const move& m, const piece& hit, const position& hit_at): move_action{m}, hit{hit}, hit_at{hit_at} {}
+
 
 	void hit_action::undo(board& b){
 		b.set_piece(b.at(m.target), m.source);
-		b.set_piece(hit, m.target);
+		b.remove_piece(m.target);
+		b.set_piece(hit, hit_at);
 	}
 
 

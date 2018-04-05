@@ -23,28 +23,42 @@ namespace chess {
 
 	//struct piece_rule;
 
-	struct action : public abstract_action {
+	struct promotion_move : public move {
+		piece_type promote_to;
+
+		promotion_move(const position& source, const position& target, piece_type promote_to);
+	};
+
+	struct move_action : public abstract_action {
 		move m;
 
-		action(const move& m);
-		virtual ~action() = default;
+		move_action(const move& m);
+		virtual ~move_action() = default;
 
 		virtual void execute(board& b);
 		virtual void undo(board& b);
 
 	};
 
-	struct hit_action : public action {
-		piece hit;
-
-		hit_action(const move& m, const piece& h);
-
+	struct promotion_action : public move_action {
+		piece_type promote_to;
+		promotion_action(const promotion_move& m);
+		virtual void execute(board& b);
 		virtual void undo(board& b);
-
 	};
 
-//	struct compound_action : public action {
-//
+	struct hit_action : public move_action {
+		piece hit;
+		position hit_at;
+
+		hit_action(const move& m, const piece& h);
+		hit_action(const move& m, const piece& h, const position& hit_at);
+
+		virtual void undo(board& b);
+	};
+
+//	struct compound_action : public abstract_action {
+//		std::vector<std::unique_ptr<abstract_action>> childs;
 //
 //		virtual void execute(board& b);
 //		virtual void undo(board& b);
@@ -135,7 +149,7 @@ namespace chess {
 				throw invalid_move_error(m, "Generic move check failed: that piece can't move like this.");
 
 			if(b.is_empty(m.target))
-				rules.next = new action(m);
+				rules.next = new move_action(m);
 			else
 				rules.next = new hit_action(m, b.at(m.target));
 
