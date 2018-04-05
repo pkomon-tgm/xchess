@@ -18,7 +18,8 @@ namespace chess {
 		position source;
 		position target;
 
-		//move(const position& source, const position& target);
+		move(const position& source, const position& target);
+		virtual ~move() = default;
 	};
 
 	class invalid_move_error : std::exception { //todo add way to provide more informatio

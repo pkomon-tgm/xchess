@@ -33,16 +33,19 @@ namespace chess {
 		move m;
 
 		move_action(const move& m);
-		virtual ~move_action() = default;
 
 		virtual void execute(board& b);
 		virtual void undo(board& b);
 
 	};
 
-	struct promotion_action : public move_action {
+	struct promotion_action : public abstract_action {
+		std::unique_ptr<move_action> act;
 		piece_type promote_to;
-		promotion_action(const promotion_move& m);
+
+		//wraps other action, whether it was a hit or move, takes ownership
+		promotion_action(move_action* act, piece_type promote_to);
+
 		virtual void execute(board& b);
 		virtual void undo(board& b);
 	};
@@ -170,6 +173,8 @@ namespace chess {
 
 	/*check is source and target positions of move are actually within board bounds*/
 	bool move_in_bounds_cb(ruleset& rules, board& b, const move& m);
+
+	bool pawn_promotion_cb(ruleset& rules, board& b, const move& m);
 
 	bool king_in_check_cb(ruleset& rules, board& b, const move& m);
 

@@ -38,16 +38,16 @@ namespace chess {
 		b.remove_piece(m.target);
 	}
 
-	promotion_action::promotion_action(const promotion_move& m): move_action{m}, promote_to{m.promote_to} {}
+	promotion_action::promotion_action(move_action* act, piece_type promote_to): act{act}, promote_to{promote_to} {}
 
 	void promotion_action::execute(board& b){
-		move_action::execute(b);
-		b.set_piece({promote_to, b.at(m.target).get_color()}, m.target);
+		act->execute(b);
+		b.set_piece({promote_to, b.at(act->m.target).get_color()}, act->m.target);
 	}
 
 	void promotion_action::undo(board& b){
-		b.set_piece({PAWN, b.at(m.target).get_color()}, m.target);
-		move_action::undo(b);
+		b.set_piece({PAWN, b.at(act->m.target).get_color()}, act->m.target);
+		act->undo(b);
 	}
 
 	hit_action::hit_action(const move& m, const piece& hit): move_action{m}, hit{hit}, hit_at{m.target} {}
@@ -77,6 +77,7 @@ namespace chess {
 			new castling_rule(),
 			new generic_piece_rule<piece_type::KING>(),
 			new generic_piece_rule<piece_type::PAWN>(),
+			new generic_rule{{PAWN}, &pawn_promotion_cb},
 		},
 		{
 			new generic_rule{ALL_PIECE_TYPES, &king_in_check_cb}
@@ -223,8 +224,17 @@ namespace chess {
 		return false;
 	}
 
-	//TODO other flow - 2 sets of rules, one before move and one after
-	//this removes the need to redo a correct move, since the board is just left, if the after-move-rules didn't throw an exception
+	bool pawn_promotion_cb(ruleset& rules, board& b, const move& m){
+		int enemy_baseline = b.at(m.source).get_color() == piece_color::WHITE ? 8 : 1;
+		if(m.target.y == enemy_baseline){
+			if(const promotion_move* pr_move = dynamic_cast<const promotion_move*>(&m))
+				rules.next = new promotion_action{static_cast<move_action*>(rules.next), pr_move->promote_to}; //wrap last move set
+			else
+				throw invalid_move_error{m, "need to pass promotion_move when moving a pawn to enemy's baseline!"};
+		}
+		return false;
+	}
+
 	bool king_in_check_cb(ruleset& rules, board& b, const move& m){
 		piece_color own_color = b.at(m.target).get_color();
 		for(auto& pos_piece : b.get_fields()){

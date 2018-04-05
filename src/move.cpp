@@ -12,7 +12,7 @@
 
 namespace chess {
 
-	//move::move(const position& source, const position& target): /*p{nullptr},*/ source{source}, target{target} {}
+	move::move(const position& source, const position& target): source{source}, target{target} {}
 
 	invalid_move_error::invalid_move_error(const move& m, const std::string& msg): m{m}, msg{msg} {}
 
