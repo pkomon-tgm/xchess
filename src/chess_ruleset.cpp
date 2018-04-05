@@ -255,4 +255,24 @@ namespace chess {
 		return true;
 	}
 
+	bool has_moved(ruleset& rules, const position& pos){
+		for(auto& action : rules.get_actions()){
+
+			move_action* actual_move_action;
+
+			if(const promotion_action* pr_action = dynamic_cast<const promotion_action*>(action.get())){
+				actual_move_action = pr_action->act.get();
+			} else
+				actual_move_action = static_cast<move_action*>(action.get());
+
+			if(actual_move_action->m.source == pos || actual_move_action->m.target == pos)
+				return true;
+
+			if(const hit_action* h_action = dynamic_cast<const hit_action*>(action.get()))
+				if(h_action->hit_at == pos)
+					return true;
+
+		}
+		return false;
+	}
 }

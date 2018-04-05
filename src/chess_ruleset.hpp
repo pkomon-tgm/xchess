@@ -88,6 +88,7 @@ namespace chess {
 
 	bool is_path_free(board& b, const position& source, const position& target, const position& offset);
 	bool is_field_attacked_by(board& b, const position& pos, piece_color color);
+	bool has_moved(ruleset& rules, const position& pos); //checks if position was involved in any movement as source or target (also check en passant?)
 
 
 	//GENERAL PIECE MOVEMENT
@@ -141,6 +142,7 @@ namespace chess {
 	extern std::map<piece_type, std::vector<position> (*)(board& b, const position& pos)> get_attacked_fields_cb_map;
 
 	std::vector<position> get_attacked_fields(board& b, const position& pos);
+
 
 	//SPECIAL RULES
 
