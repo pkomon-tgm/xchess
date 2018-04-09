@@ -53,9 +53,13 @@ namespace chess {
 	hit_action::hit_action(const move& m, const piece& hit): move_action{m}, hit{hit}, hit_at{m.target} {}
 	hit_action::hit_action(const move& m, const piece& hit, const position& hit_at): move_action{m}, hit{hit}, hit_at{hit_at} {}
 
+	void hit_action::execute(board& b){
+		move_action::execute(b);
+		b.remove_piece(hit_at);
+	}
+
 	void hit_action::undo(board& b){
-		b.set_piece(b.at(m.target), m.source);
-		b.remove_piece(m.target);
+		move_action::undo(b);
 		b.set_piece(hit, hit_at);
 	}
 
@@ -139,7 +143,7 @@ namespace chess {
 	};
 
 	//TODO find smth more elegant
-	std::map<piece_type, std::vector<position> (*)(board& b, const position& pos)> get_attacked_fields_cb_map{
+	std::map<piece_type, std::vector<position> (*)(chess_ruleset& rules, board& b, const position& pos)> get_attacked_fields_cb_map{
 		{PAWN, &get_attacked_fields<PAWN>},
 		{BISHOP, &get_attacked_fields<BISHOP>},
 		{ROCK, &get_attacked_fields<ROCK>},
@@ -148,14 +152,14 @@ namespace chess {
 		{KING, &get_attacked_fields<KING>}
 	};
 
-	std::vector<position> get_attacked_fields(board& b, const position& pos){
-		return get_attacked_fields_cb_map[b.at(pos).get_type()](b, pos);
+	std::vector<position> get_attacked_fields(chess_ruleset& rules, board& b, const position& pos){
+		return get_attacked_fields_cb_map[b.at(pos).get_type()](rules, b, pos);
 	}
 
 
-	bool is_field_attacked_by(board& b, const position& pos, piece_color color){
+	bool is_field_attacked_by(chess_ruleset& rules, board& b, const position& pos, piece_color color){
 		for(auto& pos_piece: b.get_fields()){
-			if(pos_piece.second.get_color() == color && util::vector_contains(get_attacked_fields(b, pos_piece.first), pos)){
+			if(pos_piece.second.get_color() == color && util::vector_contains(get_attacked_fields(rules, b, pos_piece.first), pos)){
 				return true;
 			}
 		}
@@ -163,7 +167,7 @@ namespace chess {
 	}
 
 
-	template<> std::vector<position> get_attacked_fields<PAWN>(board& b, const position& pos){
+	template<> std::vector<position> get_attacked_fields<PAWN>(chess_ruleset& rules, board& b, const position& pos){
 		std::vector<position> output;
 		piece_color color = b.at(pos).get_color();
 		int y_movement = color == piece_color::WHITE ? 1 : -1;
@@ -176,24 +180,35 @@ namespace chess {
 		return output;
 	}
 
-	template<> std::vector<position> get_possible_move_targets<PAWN>(board& b, const position& pos){
+	template<> std::vector<position> get_possible_move_targets<PAWN>(chess_ruleset& rules, board& b, const position& pos){
 		std::vector<position> output;
 		piece p = b.at(pos);
 		int y_movement = p.get_color() == piece_color::WHITE ? 1 : -1;
-		int baseline = p.get_color() == piece_color::WHITE ? 2 : 7;
+		int pawnline = get_baseline(p.get_color()) + y_movement;
 
 		position possible_target = pos + position{0, y_movement};
 		if (b.is_empty(possible_target))
 			output.push_back(possible_target);
-		if (pos.y == baseline){
+		if (pos.y == pawnline){
 			possible_target = pos + position{0, 2*y_movement};
 			if (b.is_empty(possible_target))
 				output.push_back(possible_target);
 		}
 
-		for (position attack : get_attacked_fields(b, pos))
+		for (const position& attack : get_attacked_fields(rules, b, pos)){
 			if (!b.is_empty(attack) && b.at(attack).get_color() != p.get_color())
 				output.push_back(attack);
+			else if (b.is_empty(attack) && pos.y == pawnline + 3*y_movement
+			      && !b.is_empty({attack.x, attack.y - y_movement})
+				  && b.at({attack.x, attack.y - y_movement}) == piece{PAWN, !p.get_color()}){
+				if (move_action* last_action = dynamic_cast<move_action*>(rules.get_actions().back().get())){
+					const move& m = last_action->m;
+					if (m.source == position{attack.x, attack.y-y_movement*-1} && m.target == position{attack.x, attack.y+y_movement*-1})
+						// en passant!
+						output.push_back(attack);
+				}
+			}
+		}
 
 		return output;
 	}
@@ -213,7 +228,7 @@ namespace chess {
 				position offset = {dir, 0};
 				if(is_path_free(b, m.source, original_tower_pos, offset)){
 					for(position current = m.source; current != m.target; current+=offset){
-						if(is_field_attacked_by(b, current, !my_color))
+						if(is_field_attacked_by(static_cast<chess_ruleset&>(rules), b, current, !my_color))
 							return false;
 					}
 					rules.next = new castling_action{m, {original_tower_pos, m.target-offset}};
@@ -264,12 +279,16 @@ namespace chess {
 		piece_color own_color = b.at(m.target).get_color();
 		for(auto& pos_piece : b.get_fields()){
 			if (pos_piece.second.get_color() == own_color && pos_piece.second.get_type() == KING){
-				if(is_field_attacked_by(b, pos_piece.first, !own_color)){
+				if(is_field_attacked_by(static_cast<chess_ruleset&>(rules), b, pos_piece.first, !own_color)){
 					throw invalid_move_error(m, "own king would be in check at the end of this move");
 				}
 			}
 		}
 		return false;
+	}
+
+	int get_baseline(piece_color c){
+		return c == piece_color::WHITE ? 1 : 8;
 	}
 
 	bool is_path_free(board& b, const position& source, const position& target, const position& offset){
@@ -299,5 +318,31 @@ namespace chess {
 
 		}
 		return false;
+	}
+
+
+	position get_piece_position(board& b, piece_color color, piece_type type){
+		for(auto& pos_piece : b.get_fields())
+			if(pos_piece.second.get_color() == color && pos_piece.second.get_type() == KING)
+				return pos_piece.first;
+		//todo
+		//throw piece_not_found{};
+		return {-1, -1};
+	}
+
+	bool is_checkmate(ruleset& rules, board& b, piece_color color){
+		//todo
+		//get king pos
+		const position& king_position = get_piece_position(b, color, KING);
+		//check if king can move out
+		for(auto& king_move_target : get_possible_move_targets<KING>(static_cast<chess_ruleset&>(rules), b, king_position)){
+			if(!is_field_attacked_by(static_cast<chess_ruleset&>(rules), b, king_move_target, !color))
+				return false;
+		}
+		//get position of pieces attacking
+		//get "attack vector" positions - only necessary for rock, bishop and queen
+		//test if own piece can hit attacking piece or move into attack vector, blocking the attack
+		//important: cover en passant!
+		return true;
 	}
 }

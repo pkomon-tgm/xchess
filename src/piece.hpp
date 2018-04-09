@@ -50,6 +50,10 @@ namespace chess {
 
 		piece_type get_type() const;
 		piece_color get_color() const;
+
+		bool operator==(const piece& other) const;
+		bool operator!=(const piece& other) const;
+
 	};
 
 }

@@ -66,6 +66,7 @@ namespace chess {
 		hit_action(const move& m, const piece& h);
 		hit_action(const move& m, const piece& h, const position& hit_at);
 
+		virtual void execute(board& b);
 		virtual void undo(board& b);
 	};
 
@@ -95,9 +96,12 @@ namespace chess {
 
 	//HELPER FUNCTIONS
 
+	int get_baseline(piece_color c);
+	position get_piece_position(board& b, piece_color color, piece_type type);
 	bool is_path_free(board& b, const position& source, const position& target, const position& offset);
-	bool is_field_attacked_by(board& b, const position& pos, piece_color color);
+	bool is_field_attacked_by(chess_ruleset& rules, board& b, const position& pos, piece_color color);
 	bool has_moved(ruleset& rules, const position& pos); //checks if position was involved in any movement as source or target (also check en passant?)
+	bool is_checkmate(ruleset& rules, board& b, piece_color color);
 
 
 	//GENERAL PIECE MOVEMENT
@@ -113,7 +117,7 @@ namespace chess {
 
 	extern std::unordered_map<piece_type, movement_spec> movement_db;
 
-	template<piece_type T> std::vector<position> get_possible_move_targets(board& b, const position& pos){
+	template<piece_type T> std::vector<position> get_possible_move_targets(chess_ruleset& rules, board& b, const position& pos){
 		movement_spec& spec = movement_db.at(T);
 		std::vector<position> output;
 		piece& piece = b.at(pos);
@@ -141,16 +145,16 @@ namespace chess {
 		return output;
 	}
 
-	template<piece_type T> std::vector<position> get_attacked_fields(board& b, const position& pos){
-		return get_possible_move_targets<T>(b, pos);
+	template<piece_type T> std::vector<position> get_attacked_fields(chess_ruleset& rules, board& b, const position& pos){
+		return get_possible_move_targets<T>(rules, b, pos);
 	}
 
-	template<> std::vector<position> get_attacked_fields<PAWN>(board& b, const position& pos);
-	template<> std::vector<position> get_possible_move_targets<PAWN>(board& b, const position& pos);
+	template<> std::vector<position> get_attacked_fields<PAWN>(chess_ruleset& rules, board& b, const position& pos);
+	template<> std::vector<position> get_possible_move_targets<PAWN>(chess_ruleset& rules, board& b, const position& pos);
 
-	extern std::map<piece_type, std::vector<position> (*)(board& b, const position& pos)> get_attacked_fields_cb_map;
+	extern std::map<piece_type, std::vector<position> (*)(chess_ruleset& rules, board& b, const position& pos)> get_attacked_fields_cb_map;
 
-	std::vector<position> get_attacked_fields(board& b, const position& pos);
+	std::vector<position> get_attacked_fields(chess_ruleset& rules, board& b, const position& pos);
 
 
 	//SPECIAL RULES
@@ -159,10 +163,13 @@ namespace chess {
 	struct generic_piece_rule : public rule {
 		generic_piece_rule(): rule{{T}} {}
 		virtual bool rule_callback(ruleset& rules, board& b, const move& m){
-			if(!util::vector_contains(get_possible_move_targets<T>(b, m.source), m.target))
+			if(!util::vector_contains(get_possible_move_targets<T>(static_cast<chess_ruleset&>(rules), b, m.source), m.target))
 				throw invalid_move_error(m, "Generic move check failed: that piece can't move like this.");
 
-			if(b.is_empty(m.target))
+			if(b.is_empty(m.target) && b.at(m.source).get_type() == PAWN && m.source.x != m.target.x)
+				// means hit by pawn on empty field -> en passant
+				rules.next = new hit_action(m, b.at({m.target.x, m.source.y}), {m.target.x, m.source.y});
+			else if (b.is_empty(m.target))
 				rules.next = new move_action(m);
 			else
 				rules.next = new hit_action(m, b.at(m.target));

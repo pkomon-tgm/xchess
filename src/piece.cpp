@@ -21,4 +21,7 @@ namespace chess {
 	piece_color piece::get_color() const {return color;}
 	piece_type piece::get_type() const {return type;}
 
+	bool piece::operator==(const piece& other) const {return other.get_color() == color && other.get_type() == type;}
+	bool piece::operator!=(const piece& other) const {return !(*this == other);}
+
 } /* namespace chess */
