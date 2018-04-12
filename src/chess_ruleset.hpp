@@ -18,6 +18,9 @@
 #include "position.hpp"
 #include "board.hpp"
 #include "util.hpp"
+#include "rule.hpp"
+
+#include "chess_actions.hpp"
 
 namespace chess {
 
@@ -29,53 +32,6 @@ namespace chess {
 		promotion_move(const position& source, const position& target, piece_type promote_to);
 	};
 
-	struct move_action : public abstract_action {
-		move m;
-
-		move_action(const move& m);
-
-		virtual void execute(board& b);
-		virtual void undo(board& b);
-
-	};
-
-	struct promotion_action : public abstract_action {
-		std::unique_ptr<move_action> act;
-		piece_type promote_to;
-
-		//wraps other action, whether it was a hit or move, takes ownership
-		promotion_action(move_action* act, piece_type promote_to);
-
-		virtual void execute(board& b);
-		virtual void undo(board& b);
-	};
-
-	struct castling_action : public abstract_action {
-		move_action king_action, tower_action;
-
-		castling_action(const move& king_move, const move& tower_move);
-
-		virtual void execute(board& b);
-		virtual void undo(board& b);
-	};
-
-	struct hit_action : public move_action {
-		piece hit;
-		position hit_at;
-
-		hit_action(const move& m, const piece& h);
-		hit_action(const move& m, const piece& h, const position& hit_at);
-
-		virtual void execute(board& b);
-		virtual void undo(board& b);
-	};
-
-//	struct compound_action : public abstract_action {
-//		std::vector<std::unique_ptr<abstract_action>> childs;
-//
-//		virtual void execute(board& b);
-//		virtual void undo(board& b);
-//	};
 
 	class chess_ruleset : public ruleset {
 		piece_color to_move = piece_color::WHITE;
@@ -117,7 +73,7 @@ namespace chess {
 
 	extern std::unordered_map<piece_type, movement_spec> movement_db;
 
-	template<piece_type T> std::vector<position> get_possible_move_targets(chess_ruleset& rules, board& b, const position& pos){
+	template<piece_type T> std::vector<position> get_possible_move_targets(chess_ruleset& rules, board& b, const position& pos, bool include_own_pieces=false){
 		movement_spec& spec = movement_db.at(T);
 		std::vector<position> output;
 		piece& piece = b.at(pos);
@@ -126,14 +82,14 @@ namespace chess {
 			position possible_target = pos + possible_move;
 			for(unsigned int factor = 1; (factor <= spec.times || spec.times == std::numeric_limits<unsigned int>::infinity()) && b.is_in_bounds(possible_target); ++factor){ //TODO
 
-				if(!b.is_empty(possible_target) && b.at(possible_target).get_color() == piece.get_color())
+				if((!b.is_empty(possible_target) && b.at(possible_target).get_color() == piece.get_color()) && !include_own_pieces)
 					break;
 
 				if(spec.jump){
 					output.push_back(possible_target);
 					continue;
 				}
-				if(is_path_free(b, pos, possible_target, possible_move) && (b.is_empty(possible_target) || b.at(possible_target).get_color() != piece.get_color())){
+				if(is_path_free(b, pos, possible_target, possible_move) && ((b.is_empty(possible_target) || b.at(possible_target).get_color() != piece.get_color()) || include_own_pieces)){
 					output.push_back(possible_target);
 				} else
 					break;
@@ -146,14 +102,19 @@ namespace chess {
 	}
 
 	template<piece_type T> std::vector<position> get_attacked_fields(chess_ruleset& rules, board& b, const position& pos){
-		return get_possible_move_targets<T>(rules, b, pos);
+		return get_possible_move_targets<T>(rules, b, pos, true);
 	}
 
 	template<> std::vector<position> get_attacked_fields<PAWN>(chess_ruleset& rules, board& b, const position& pos);
-	template<> std::vector<position> get_possible_move_targets<PAWN>(chess_ruleset& rules, board& b, const position& pos);
+	template<> std::vector<position> get_possible_move_targets<PAWN>(chess_ruleset& rules, board& b, const position& pos, bool include_own_pieces);
 
-	extern std::map<piece_type, std::vector<position> (*)(chess_ruleset& rules, board& b, const position& pos)> get_attacked_fields_cb_map;
+	using get_attacked_fields_cb = std::vector<position> (*)(chess_ruleset& rules, board& b, const position& pos);
+	using get_possible_move_targets_cb = std::vector<position> (*)(chess_ruleset& rules, board& b, const position& pos, bool);
 
+	extern std::map<piece_type, std::pair<get_possible_move_targets_cb, get_attacked_fields_cb>> movement_attack_cb_map;
+	//extern std::map<piece_type, get_possible_move_targets_cb> get_possible_move_targets_cb_map;
+
+	std::vector<position> get_possible_move_targets(chess_ruleset& rules, board& b, const position& pos);
 	std::vector<position> get_attacked_fields(chess_ruleset& rules, board& b, const position& pos);
 
 
@@ -168,11 +129,11 @@ namespace chess {
 
 			if(b.is_empty(m.target) && b.at(m.source).get_type() == PAWN && m.source.x != m.target.x)
 				// means hit by pawn on empty field -> en passant
-				rules.next = new hit_action(m, b.at({m.target.x, m.source.y}), {m.target.x, m.source.y});
+				rules.set_next(new hit_action(m, b.at({m.target.x, m.source.y}), {m.target.x, m.source.y}));
 			else if (b.is_empty(m.target))
-				rules.next = new move_action(m);
+				rules.set_next(new move_action(m));
 			else
-				rules.next = new hit_action(m, b.at(m.target));
+				rules.set_next(new hit_action(m, b.at(m.target)));
 
 			return false;
 		}

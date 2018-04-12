@@ -15,64 +15,21 @@
 #include "util.hpp"
 
 #include "ruleset.hpp"
+#include "generic_rule.hpp"
 #include "board.hpp"
 #include "move.hpp"
 #include "position.hpp"
 
+#include "chess_actions.hpp"
+
+
 #include <iostream>
+
 
 namespace chess {
 
 	promotion_move::promotion_move(const position& source, const position& target, piece_type promote_to):
 			move{source, target}, promote_to{promote_to} {}
-
-	move_action::move_action(const move& m): m{m} {}
-
-	void move_action::execute(board& b){
-		b.set_piece(b.at(m.source), m.target);
-		b.remove_piece(m.source);
-	}
-
-	void move_action::undo(board& b){
-		b.set_piece(b.at(m.target), m.source);
-		b.remove_piece(m.target);
-	}
-
-	promotion_action::promotion_action(move_action* act, piece_type promote_to): act{act}, promote_to{promote_to} {}
-
-	void promotion_action::execute(board& b){
-		act->execute(b);
-		b.set_piece({promote_to, b.at(act->m.target).get_color()}, act->m.target);
-	}
-
-	void promotion_action::undo(board& b){
-		b.set_piece({PAWN, b.at(act->m.target).get_color()}, act->m.target);
-		act->undo(b);
-	}
-
-	hit_action::hit_action(const move& m, const piece& hit): move_action{m}, hit{hit}, hit_at{m.target} {}
-	hit_action::hit_action(const move& m, const piece& hit, const position& hit_at): move_action{m}, hit{hit}, hit_at{hit_at} {}
-
-	void hit_action::execute(board& b){
-		move_action::execute(b);
-		b.remove_piece(hit_at);
-	}
-
-	void hit_action::undo(board& b){
-		move_action::undo(b);
-		b.set_piece(hit, hit_at);
-	}
-
-	castling_action::castling_action(const move& king_move, const move& tower_move): king_action{king_move}, tower_action{tower_move} {}
-	void castling_action::execute(board& b){
-		king_action.execute(b);
-		tower_action.execute(b);
-	}
-
-	void castling_action::undo(board& b){
-		tower_action.undo(b);
-		king_action.undo(b);
-	}
 
 	const std::set<piece_type> ALL_PIECE_TYPES{piece_type::PAWN, piece_type::ROCK, piece_type::KNIGHT,
 											   piece_type::BISHOP, piece_type::QUEEN, piece_type::KING};
@@ -125,10 +82,14 @@ namespace chess {
 
 	void chess_ruleset::after_move(board& b, const move& m){
 		toggle_to_move();
+		if(is_checkmate(*this, b, to_move)){
+			throw std::exception();
+			//throw checkmate_exception{};
+		}
 	}
 
 	piece_color chess_ruleset::get_to_move(){return to_move;}
-	void chess_ruleset::toggle_to_move(){to_move =! to_move;}
+	void chess_ruleset::toggle_to_move(){to_move = !to_move;}
 
 
 	movement_spec::movement_spec(const std::vector<position>& relative_moves, unsigned int times, bool jump):
@@ -143,27 +104,42 @@ namespace chess {
 	};
 
 	//TODO find smth more elegant
-	std::map<piece_type, std::vector<position> (*)(chess_ruleset& rules, board& b, const position& pos)> get_attacked_fields_cb_map{
-		{PAWN, &get_attacked_fields<PAWN>},
-		{BISHOP, &get_attacked_fields<BISHOP>},
-		{ROCK, &get_attacked_fields<ROCK>},
-		{KNIGHT, &get_attacked_fields<KNIGHT>},
-		{QUEEN, &get_attacked_fields<QUEEN>},
-		{KING, &get_attacked_fields<KING>}
+	std::map<piece_type, std::pair<get_possible_move_targets_cb, get_attacked_fields_cb>> movement_attack_cb_map{
+		{PAWN, {&get_possible_move_targets<PAWN>, &get_attacked_fields<PAWN>}},
+		{BISHOP, {&get_possible_move_targets<BISHOP>, &get_attacked_fields<BISHOP>}},
+		{ROCK, {&get_possible_move_targets<ROCK>, &get_attacked_fields<ROCK>}},
+		{KNIGHT, {&get_possible_move_targets<KNIGHT>, &get_attacked_fields<KNIGHT>}},
+		{QUEEN, {&get_possible_move_targets<QUEEN>, &get_attacked_fields<QUEEN>}},
+		{KING, {&get_possible_move_targets<KING>, &get_attacked_fields<KING>}}
 	};
 
 	std::vector<position> get_attacked_fields(chess_ruleset& rules, board& b, const position& pos){
-		return get_attacked_fields_cb_map[b.at(pos).get_type()](rules, b, pos);
+		return movement_attack_cb_map[b.at(pos).get_type()].second(rules, b, pos);
 	}
 
+	std::vector<position> get_possible_move_targets(chess_ruleset& rules, board& b, const position& pos){
+		return movement_attack_cb_map[b.at(pos).get_type()].first(rules, b, pos, false);
+	}
+
+	std::vector<position> get_field_attackers(chess_ruleset& rules, board& b, const position& pos, piece_color color){
+		std::vector<position> out;
+		for(auto& pos_piece: b.get_fields()){
+			if(pos_piece.second.get_color() == color && util::vector_contains(get_attacked_fields(rules, b, pos_piece.first), pos)){
+				out.push_back(pos_piece.first);
+			}
+		}
+		return out;
+	}
 
 	bool is_field_attacked_by(chess_ruleset& rules, board& b, const position& pos, piece_color color){
-		for(auto& pos_piece: b.get_fields()){
+		//more optimized
+		/*for(auto& pos_piece: b.get_fields()){
 			if(pos_piece.second.get_color() == color && util::vector_contains(get_attacked_fields(rules, b, pos_piece.first), pos)){
 				return true;
 			}
 		}
-		return false;
+		return false;*/
+		return !get_field_attackers(rules, b, pos, color).empty();
 	}
 
 
@@ -180,7 +156,7 @@ namespace chess {
 		return output;
 	}
 
-	template<> std::vector<position> get_possible_move_targets<PAWN>(chess_ruleset& rules, board& b, const position& pos){
+	template<> std::vector<position> get_possible_move_targets<PAWN>(chess_ruleset& rules, board& b, const position& pos, bool include_own_pieces){
 		std::vector<position> output;
 		piece p = b.at(pos);
 		int y_movement = p.get_color() == piece_color::WHITE ? 1 : -1;
@@ -231,7 +207,7 @@ namespace chess {
 						if(is_field_attacked_by(static_cast<chess_ruleset&>(rules), b, current, !my_color))
 							return false;
 					}
-					rules.next = new castling_action{m, {original_tower_pos, m.target-offset}};
+					rules.set_next(new castling_action{m, {original_tower_pos, m.target-offset}});
 					return true;
 				}
 			}
@@ -268,7 +244,7 @@ namespace chess {
 		int enemy_baseline = b.at(m.source).get_color() == piece_color::WHITE ? 8 : 1;
 		if(m.target.y == enemy_baseline){
 			if(const promotion_move* pr_move = dynamic_cast<const promotion_move*>(&m))
-				rules.next = new promotion_action{static_cast<move_action*>(rules.next), pr_move->promote_to}; //wrap last move set
+				rules.set_next(new promotion_action{std::move(rules.next), pr_move->promote_to}); //wrap last move set
 			else
 				throw invalid_move_error{m, "need to pass promotion_move when moving a pawn to enemy's baseline!"};
 		}
@@ -278,7 +254,7 @@ namespace chess {
 	bool king_in_check_cb(ruleset& rules, board& b, const move& m){
 		piece_color own_color = b.at(m.target).get_color();
 		for(auto& pos_piece : b.get_fields()){
-			if (pos_piece.second.get_color() == own_color && pos_piece.second.get_type() == KING){
+			if (pos_piece.second == piece{KING, own_color}){
 				if(is_field_attacked_by(static_cast<chess_ruleset&>(rules), b, pos_piece.first, !own_color)){
 					throw invalid_move_error(m, "own king would be in check at the end of this move");
 				}
@@ -325,24 +301,67 @@ namespace chess {
 		for(auto& pos_piece : b.get_fields())
 			if(pos_piece.second.get_color() == color && pos_piece.second.get_type() == KING)
 				return pos_piece.first;
-		//todo
-		//throw piece_not_found{};
+		//todo: throw piece_not_found_exception{};
 		return {-1, -1};
 	}
 
 	bool is_checkmate(ruleset& rules, board& b, piece_color color){
+
+		auto get_attack_vector = [&b](position start, position vec)->std::vector<position>{
+			std::vector<position> out;
+			position offset{vec.x > 0 ? 1 : (vec.x < 0 ? -1 : 0), vec.y > 0 ? 1 : (vec.y < 0 ? -1 : 0)};
+			position target = start + vec;
+			for (start+=offset; start!=target; start+=offset)
+				out.push_back(start);
+			return out;
+		};
+
 		//todo
 		//get king pos
 		const position& king_position = get_piece_position(b, color, KING);
+		if (!is_field_attacked_by(static_cast<chess_ruleset&>(rules), b, king_position, !color)){
+			return false;
+		}
+
 		//check if king can move out
-		for(auto& king_move_target : get_possible_move_targets<KING>(static_cast<chess_ruleset&>(rules), b, king_position)){
+		for(auto& king_move_target : get_possible_move_targets(static_cast<chess_ruleset&>(rules), b, king_position)){
 			if(!is_field_attacked_by(static_cast<chess_ruleset&>(rules), b, king_move_target, !color))
 				return false;
 		}
 		//get position of pieces attacking
-		//get "attack vector" positions - only necessary for rock, bishop and queen
-		//test if own piece can hit attacking piece or move into attack vector, blocking the attack
-		//important: cover en passant!
+		auto attacking_positions = get_field_attackers(static_cast<chess_ruleset&>(rules), b, king_position, !color);
+		for (auto& attacking_position : attacking_positions){
+			auto hit_candidates = get_field_attackers(static_cast<chess_ruleset&>(rules), b, attacking_position, color);
+			//evaluate moves hit_candidate -> attacking_position - can attacking piece be hit?
+			for (auto& hit_candidate : hit_candidates){
+				try {
+					rules.apply(b, move{hit_candidate, attacking_position}, true);
+					return false;
+				} catch (invalid_move_error& e) {
+					//std::cout << "evaluate failed: " << e.what() << std::endl;
+				}
+			}
+
+			//test if own piece into attack vector, effectively blocking the attack
+			piece_type attacking_piece_type = b.at(attacking_position).get_type();
+
+			if (attacking_piece_type == ROCK || attacking_piece_type == BISHOP || attacking_piece_type == QUEEN){
+				auto attack_vector = get_attack_vector(attacking_position, king_position - attacking_position);
+				for (auto& attack_vector_position : attack_vector){
+					for (auto& pos_piece : b.get_fields()){
+						if (pos_piece.second.get_color() == color
+						  && util::vector_contains(get_possible_move_targets(static_cast<chess_ruleset&>(rules), b, pos_piece.first), attack_vector_position)){
+							try {
+								rules.apply(b, move{pos_piece.first, attack_vector_position}, true);
+								return false;
+							} catch (invalid_move_error& e) {
+								//std::cout << "evaluate failed: " << e.what() << std::endl;
+							}
+						}
+					}
+				}
+			}
+		}
 		return true;
 	}
 }

@@ -11,50 +11,16 @@
 #include <vector>
 #include <set>
 #include <exception>
-
-//#include "board.hpp"
-#include "move.hpp"
-
 #include <memory>
 #include <functional>
+
+#include "move.hpp"
+#include "abstract_action.hpp"
+#include "rule.hpp"
 
 namespace chess {
 
 	class board; //fw
-	class ruleset;
-
-	struct abstract_action{
-		virtual ~abstract_action() = default;
-		virtual void execute(board& b) = 0;
-		virtual void undo(board& b) = 0;
-	};
-
-	class rule {
-		std::set<piece_type> applies_to_types;
-
-	public:
-		rule(const std::set<piece_type>& applies_to_types);
-		virtual ~rule() = default;
-
-		bool apply(ruleset& rules, board& b, const move& m);
-		bool apply(ruleset& rules, board& b, const move& m, piece_type type);
-
-		virtual bool rule_callback(ruleset& rules, board& b, const move& m) = 0;
-
-	private:
-		bool applies_to(piece_type type) const;
-	};
-
-	using generic_rule_cb_function = std::function<bool(ruleset& rules, board& b, const move& m)>;
-
-	class generic_rule : public rule {
-		generic_rule_cb_function cb;
-
-	public:
-		generic_rule(const std::set<piece_type>& applies_to_types, const generic_rule_cb_function& cb);
-		virtual bool rule_callback(ruleset& rules, board& b, const move& m) override;
-	};
-
 
 	class ruleset {
 
@@ -67,14 +33,15 @@ namespace chess {
 		ruleset(const std::vector<rule*>& rules_before, const std::vector<rule*>& rules_after);
 		virtual ~ruleset() = default;
 
-		void apply(board& b, const move& m);
+		void apply(board& b, const move& m, bool eval = false);
 
 		virtual void init(board& b);
 		virtual void reset(board& b);
 		virtual void after_move(board& b, const move& m);
 		std::vector<std::unique_ptr<abstract_action>>& get_actions();
 
-		abstract_action* next;
+		std::unique_ptr<abstract_action> next;
+		virtual void set_next(abstract_action* action);
 	};
 
 } /* namespace chess */
