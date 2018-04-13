@@ -27,7 +27,7 @@ namespace chess {
 	void ruleset::apply(board& b, const move& m, bool eval) {
 		bool consumed = false;
 		for(std::size_t i = 0; i < rules_before_move.size() && !consumed; ++i){
-			consumed |= rules_before_move[i]->apply(*this, b, m);
+			consumed |= rules_before_move[i]->apply(*this, b, m, b.at(m.source).get_type());
 		}
 		if(next != nullptr){
 			next->execute(b);

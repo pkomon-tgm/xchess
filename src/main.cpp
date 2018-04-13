@@ -6,23 +6,50 @@
  */
 
 #include <iostream>
+#include "boost/algorithm/string.hpp"
 
 #include "game.hpp"
 #include "board.hpp"
 #include "chess_ruleset.hpp"
 
-chess::position get_pos_from_cin(const std::string& prompt = ""){
-	char x; int y;
 
-	std::cout << prompt;
-	std::cin >> x >> y;
+chess::position to_position(const std::string& s){
+	char col = s[0];
+	int row = std::stoi(s.substr(1));
+	return chess::position{col, row};
+}
 
-	if(std::cin.fail()){
-		std::cin.clear();
-		std::cin.ignore(10000);
-		return get_pos_from_cin(prompt);
-	}
-	return chess::position{x, y};
+
+chess::move* get_move_from_cin(const std::string& prompt =""){
+	static std::map<std::string, chess::piece_type> str_to_piece_type{
+		{"rock", chess::piece_type::ROCK},
+		{"knight", chess::piece_type::KNIGHT},
+		{"bishop", chess::piece_type::BISHOP},
+		{"queen", chess::piece_type::QUEEN},
+	};
+
+	do {
+		std::string in;
+		std::cout << prompt;
+		std::getline(std::cin, in);
+		std::vector<std::string> in_parts;
+		boost::split(in_parts, in, boost::is_space());
+
+		try {
+			if (in_parts.size() == 2){
+				return new chess::move{to_position(in_parts[0]), to_position(in_parts[1])};
+			} else if (in_parts.size() == 3){
+				if (str_to_piece_type.find(in_parts[2]) != str_to_piece_type.end())
+					return new chess::promotion_move{to_position(in_parts[0]), to_position(in_parts[1]), str_to_piece_type[in_parts[2]]};
+				else
+					std::cout << "promotion_type not found; allowed values are 'rock', 'knight', 'bishop', 'queen'" << std::endl;
+			} else {
+				std::cout << "wrong format for move: need to be 'POS POS [promotion_type]', e.g. E2 E4 or B7 B8 queen" << std::endl;
+			}
+		} catch (const std::invalid_argument& e){
+			std::cout << "could not parse token to position - positions need to be in format [char][int], e.g. E2 or F7" << std::endl;
+		}
+	} while(true);
 }
 
 int main(int argc, char **argv) {
@@ -44,12 +71,10 @@ int main(int argc, char **argv) {
 	std::cout << g.get_board().to_string() << std::endl;
 
 	while(true){
-		//std::cout << "to move [0..WHITE, 1..BLACK]: " /*<< g.get_to_move()*/ << std::endl;
-		auto src = get_pos_from_cin("src: ");
-		auto dest = get_pos_from_cin("dest: ");
+		std::unique_ptr<chess::move> m{get_move_from_cin("dooo it: ")};
 		std::cout << std::endl;
 		try {
-			g.make_move({src, dest});
+			g.make_move(*m);
 		} catch(const chess::invalid_move_error& e) {
 			std::cout << "move is not rule-compliant:" << std::endl;
 			std::cout << e.what() << std::endl;

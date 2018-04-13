@@ -23,8 +23,5 @@ namespace chess {
 		return false;
 	}
 
-	bool rule::apply(ruleset& rules, board& b, const move& m) {
-		return apply(rules, b, m, b.at(m.source).get_type());
-	}
 
 } // namespace chess

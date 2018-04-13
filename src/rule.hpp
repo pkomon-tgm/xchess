@@ -26,7 +26,6 @@ namespace chess {
 			rule(const std::set<piece_type>& applies_to_types);
 			virtual ~rule() = default;
 
-			bool apply(ruleset& rules, board& b, const move& m);
 			bool apply(ruleset& rules, board& b, const move& m, piece_type type);
 
 			virtual bool rule_callback(ruleset& rules, board& b, const move& m) = 0;

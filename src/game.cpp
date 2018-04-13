@@ -18,11 +18,6 @@ namespace chess {
 		if(b.is_empty(m.source))
 			throw invalid_move_error(m, "no piece on source field");
 		rules->apply(b, m);
-
-		//TODO do actual move on board! how to implement special moves, distinct to ruleset?
-		//maybe execute move in rule itself?
-		//b.set_piece(b.at(m.source), m.target);
-		//b.remove_piece(m.source);
 	}
 
 	board& game::get_board(){return b;}
