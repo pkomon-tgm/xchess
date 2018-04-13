@@ -71,13 +71,18 @@ int main(int argc, char **argv) {
 	std::cout << g.get_board().to_string() << std::endl;
 
 	while(true){
-		std::unique_ptr<chess::move> m{get_move_from_cin("dooo it: ")};
+		std::unique_ptr<chess::move> m(
+				get_move_from_cin(std::string(chess::chess_rules.get_to_move() == chess::piece_color::WHITE ? "blue (white) to move": "red (black) to move") + std::string(" your move: ")));
 		std::cout << std::endl;
 		try {
 			g.make_move(*m);
 		} catch(const chess::invalid_move_error& e) {
 			std::cout << "move is not rule-compliant:" << std::endl;
 			std::cout << e.what() << std::endl;
+		} catch(const chess::checkmate& e) {
+			std::cout << g.get_board().to_string() << std::endl;
+			std::cout << "checkmate! " << (e.winner == chess::piece_color::WHITE ? "blue (white) " : "red (black) ") << "wins. Congrats!" << std::endl;
+			break;
 		}
 		std::cout << g.get_board().to_string() << std::endl;
 	}

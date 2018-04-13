@@ -80,11 +80,12 @@ namespace chess {
 		b.set_piece({piece_type::KING, piece_color::BLACK}, {'E', 8});
 	}
 
+	checkmate::checkmate(piece_color winner): winner{winner} {}
+
 	void chess_ruleset::after_move(board& b, const move& m){
 		toggle_to_move();
 		if(is_checkmate(*this, b, to_move)){
-			throw std::exception();
-			//throw checkmate_exception{};
+			throw checkmate(!to_move);
 		}
 	}
 

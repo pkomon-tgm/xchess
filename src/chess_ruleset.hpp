@@ -49,6 +49,10 @@ namespace chess {
 
 	extern chess_ruleset chess_rules;
 
+	struct checkmate : public std::exception {
+		piece_color winner;
+		checkmate(piece_color winner);
+	};
 
 	//HELPER FUNCTIONS
 

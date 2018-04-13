@@ -16,6 +16,10 @@
 #include "move.hpp"
 #include "ruleset.hpp"
 
+#define RED "\033[31m"
+#define BLUE "\033[34m"
+#define RESET "\033[0m"
+
 namespace chess {
 
 	board::board(unsigned short size): fields{}, size{size} {
@@ -44,16 +48,21 @@ namespace chess {
 	std::string board::to_string(){
 		std::stringstream ss;
 
+		ss << " ";
+		for(short x = 1; x <= size; ++x)
+			ss << " " << position::to_char(x);
+		ss << std::endl;
+
 		for(short y = size; y >= 1; --y){
 			ss << y << "|";
 			for(short x = 1; x <= size; ++x){
 				if(is_empty({x, y})){
 					ss << " |";
 				} else {
-					ss << at({x, y}).get_type() << "|";
+					ss << (at({x, y}).get_color() == piece_color::WHITE ? BLUE : RED) << at({x, y}).get_type() << RESET << "|";
 				}
 			}
-			ss << std::endl;
+			ss << y << std::endl;
 		}
 		ss << " ";
 		for(short x = 1; x <= size; ++x)
