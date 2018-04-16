@@ -34,7 +34,7 @@ namespace chess {
 	const std::set<piece_type> ALL_PIECE_TYPES{piece_type::PAWN, piece_type::ROCK, piece_type::KNIGHT,
 											   piece_type::BISHOP, piece_type::QUEEN, piece_type::KING};
 
-	chess_ruleset chess_rules{
+	chess_ruleset::chess_ruleset(): ruleset{
 		{
 			new generic_rule{ALL_PIECE_TYPES, &right_to_move_cb},
 			new generic_rule{ALL_PIECE_TYPES, &different_source_target_rule_cb},
@@ -52,7 +52,27 @@ namespace chess {
 		{
 			new generic_rule{ALL_PIECE_TYPES, &king_in_check_cb}
 		}
-	};
+	} {}
+
+	/*chess_ruleset chess_rules{
+		{
+			new generic_rule{ALL_PIECE_TYPES, &right_to_move_cb},
+			new generic_rule{ALL_PIECE_TYPES, &different_source_target_rule_cb},
+			new generic_rule{ALL_PIECE_TYPES, &empty_target_rule_cb},
+			new generic_rule{ALL_PIECE_TYPES, &move_in_bounds_cb},
+			new generic_piece_rule<piece_type::ROCK>(),
+			new generic_piece_rule<piece_type::KNIGHT>(),
+			new generic_piece_rule<piece_type::BISHOP>(),
+			new generic_piece_rule<piece_type::QUEEN>(),
+			new castling_rule(),
+			new generic_piece_rule<piece_type::KING>(),
+			new generic_piece_rule<piece_type::PAWN>(),
+			new generic_rule{{PAWN}, &pawn_promotion_cb},
+		},
+		{
+			new generic_rule{ALL_PIECE_TYPES, &king_in_check_cb}
+		}
+	};*/
 
 	void chess_ruleset::init(board& b){
 		for(auto i = 1; i <= 8; ++i)

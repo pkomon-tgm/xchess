@@ -37,17 +37,15 @@ namespace chess {
 		piece_color to_move = piece_color::WHITE;
 
 	public:
-		using ruleset::ruleset;
+		chess_ruleset();
 
 		virtual void init(board& b) override;
 		virtual void after_move(board& b, const move& m) override;
 
 		piece_color get_to_move();
 		void toggle_to_move();
-
 	};
 
-	extern chess_ruleset chess_rules;
 
 	struct checkmate : public std::exception {
 		piece_color winner;

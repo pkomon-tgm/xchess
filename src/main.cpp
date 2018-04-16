@@ -52,6 +52,10 @@ chess::move* get_move_from_cin(const std::string& prompt =""){
 	} while(true);
 }
 
+std::string get_player_color_string(chess::piece_color c){
+	return c == chess::piece_color::WHITE ? "blue (white)": "red (black)";
+}
+
 int main(int argc, char **argv) {
 
 	/*
@@ -65,14 +69,14 @@ int main(int argc, char **argv) {
 	 *
 	 */
 
-	chess::game g{chess::board{8}, chess::chess_rules};
+	chess::game g{new chess::chess_ruleset{}};
 
 	std::cout << "chess testing" << std::endl;
 	std::cout << g.get_board().to_string() << std::endl;
 
 	while(true){
 		std::unique_ptr<chess::move> m(
-				get_move_from_cin(std::string(chess::chess_rules.get_to_move() == chess::piece_color::WHITE ? "blue (white) to move": "red (black) to move") + std::string(" your move: ")));
+				get_move_from_cin(get_player_color_string(static_cast<chess::chess_ruleset&>(g.get_ruleset()).get_to_move()) + std::string("; your move: ")));
 		std::cout << std::endl;
 		try {
 			g.make_move(*m);
@@ -81,7 +85,7 @@ int main(int argc, char **argv) {
 			std::cout << e.what() << std::endl;
 		} catch(const chess::checkmate& e) {
 			std::cout << g.get_board().to_string() << std::endl;
-			std::cout << "checkmate! " << (e.winner == chess::piece_color::WHITE ? "blue (white) " : "red (black) ") << "wins. Congrats!" << std::endl;
+			std::cout << "checkmate! " << get_player_color_string(e.winner) << " wins. Congrats!" << std::endl;
 			break;
 		}
 		std::cout << g.get_board().to_string() << std::endl;

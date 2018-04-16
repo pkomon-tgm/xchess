@@ -9,8 +9,8 @@
 
 namespace chess {
 
-	game::game(const board& b, ruleset& rules): b{b}, rules{&rules} {
-		rules.init(this->b);
+	game::game(ruleset* rules): b{8}, rules{rules} {
+		rules->init(b);
 	}
 
 
@@ -21,6 +21,7 @@ namespace chess {
 	}
 
 	board& game::get_board(){return b;}
+	ruleset& game::get_ruleset(){return *rules;}
 
 
 } /* namespace chess */

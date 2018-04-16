@@ -8,7 +8,7 @@
 #ifndef GAME_HPP
 #define GAME_HPP
 
-#include <exception>
+#include <memory>
 
 #include "board.hpp"
 #include "piece.hpp"
@@ -17,13 +17,14 @@ namespace chess {
 
 	class game {
 		board b;
-		ruleset* rules;
+		std::unique_ptr<ruleset> rules;
 
 	public:
-		game(const board& b, ruleset& rules);
+		game(ruleset* rules);
 
 		void make_move(const move& m);
 		board& get_board();
+		ruleset& get_ruleset();
 	};
 
 } /* namespace chess */
