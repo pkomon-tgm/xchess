@@ -8,9 +8,9 @@
 #include <iostream>
 #include "boost/algorithm/string.hpp"
 
-#include "game.hpp"
-#include "board.hpp"
-#include "chess_ruleset.hpp"
+#include "../game.hpp"
+#include "../board.hpp"
+#include "../chess_ruleset.hpp"
 
 
 chess::position to_position(const std::string& s){
