@@ -24,3 +24,6 @@ Still there are a few features that will be added in near future:
 * Timers
 * Riddles
 
+## Dependencies
+
+* boost (tested with 1.66), libs `chrono`, `serialization`, `wserialization`, `filesystem`, `system`, `thread`,`timer` required (actually dunno, just saw them in my build from ages ago)
